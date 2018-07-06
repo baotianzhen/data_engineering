@@ -1,0 +1,127 @@
+https://medium.com/@samson_hu/building-analytics-at-500px-92e9a7005c83
+
+All our apps and websites run on top of our API
+servers. On these servers, we serve a monolithic
+Rails application as well as a handful of
+microservices. These are backed by several
+databases, the main one being MySQL.
+
+On MySQL, we store stateful information that is
+used by our applications. Two tables of importance
+are the photos and users tables. We also have a
+table for subscription purchases and stock photo
+purchases.
+
+We log API calls and stage changes in the backend.
+For example, a call to serve a photo is logged,
+as well as an action such as a signup, upload,
+vote, or follow.
+
+Logs are just text files. When we log an action,
+we simply append a line that looks like this:
+
+  2015–02–10 10:24:31.32444 23432423 photo_like 423223 123.132.623.123 /get?…
+
+Items in a line can include the timestamp, photo
+id, user id, user ip, action as well as anything
+else that is relevant.
+
+Logs provide a history of activity on the platform
+that complements the stateful information in MySQL.
+These logs are aggregated and archived in S3, hourly.
+We produce around 20GB of log file every day.
+
+Both data sources -- MySQL and the logs -- are
+useful for analytics. MySQL is great for grabbing
+photo and user information, as well as stock photo
+and subscription transactions. The logs are great
+for understanding user behaviour over time.
+
+But when you needed to ask a question that involved
+both behaviour and state, such as how many users
+liked a photo in the last month (logs) broken down
+by user subscription type (MySQL), you would need
+an offline way to query the two data sources
+separately and then combine the two. For this, I
+used Python with its MySQL and Splunk libraries.
+
+This was a minor headache. It's not time efficient
+to write custom code to do data pulls.
+
+When there's only one analyst for a company of over
+60 people who all need to access data and can't do
+it themselves, it's going to be a bad time.
+
+On the infrastructure side, I needed two things:
+- a database that combines the logs and MySQL
+that is easy to query
+- a front-end to this database. Something that
+is easy to use so that anyone can query the data
+model with minimal help
+
+With this, I could remove myself form being a
+dependency to all data analysis and pulls
+around the company.
+
+NEW INFRASTRUCTURE, PART 1: Redshift
+A Primer on Dimensionality Modelling
+
+Kimball introduced in the 90's the idea of the
+dimensional data warehouse. This is a SQL database
+specialized for business analysis, different than
+production databases for applications. It is meant
+to be easy to understand and query.
+
+Dimensional data warehouses have a special schema,
+with two types of tables:
+  - fact tables
+  - dimension tables
+Data would flow from the source (MySQL and logs),
+to these two types of tables in a process called
+Extract-Transform-Load (ETL). Let's briefly talk
+about ETL and schema.
+
+The Dimensional Data Warehouse Schema
+
+The schemas of data warehouses have two types of
+tables:
+  - Fact tables, to record measurements in time
+  of a process
+  - Dimension tables, to record information about
+  a particular item
+
+Both tables are meant to be understandabele. They
+must have readable column names and values.
+
+As an example:
+  - the *likes fact table* has the columns:
+    - datetime
+    - user_id
+    - photo_id
+    - client
+  - the *users dimension table* has the columns:
+    - user_id
+    - username
+    - first_name
+    - last_name
+    - ...
+    - subscription_type
+    - ...
+    - is_seller
+    - ...
+    - has_android_app
+    - ...
+
+Here's an example of using this schema.
+
+If we wanted to know how many likes in the past
+week, we could query the *likes fact table*, sum
+the records, and filter by date.
+
+But if we wanted a breakdown of likes by user
+subscription type, querying the *fact table* would
+not be enough. subscription_type is not cotained
+in the *likes fact table*. But user_id is. We would
+need to join the *likes fact table* to the *users
+dimension table* by way of user_id, and then group
+by user subscription_type.

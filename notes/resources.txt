@@ -1,0 +1,18 @@
+Star Schema
+  https://en.wikipedia.org/wiki/Star_schema
+
+Surrogate Keys
+  https://www.kimballgroup.com/1998/05/surrogate-keys/
+
+Dimensional Modeling
+  https://en.wikipedia.org/wiki/Dimensional_modeling
+  https://www.amazon.com/Data-Warehouse-Toolkit-Complete-Dimensional/dp/0471200247
+
+Slowly Changing Dimension (SCD)
+  https://en.wikipedia.org/wiki/Slowly_changing_dimension
+
+Data Definition Language (DDL)
+  https://en.wikipedia.org/wiki/Data_definition_language
+
+Redshift Data Warehouse
+  https://aws.amazon.com/redshift/
